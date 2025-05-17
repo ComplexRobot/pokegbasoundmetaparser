@@ -25,7 +25,7 @@ void main(size_t argc, char8_t* argv[]) {
   };
 
   // Read in indices CSV file
-  std::unordered_map<std::string, uint64_t> indices;
+  std::unordered_map<std::string, int64_t> indices;
   if (argc > 2) {
     std::vector<char> data{ ReadFile(std::filesystem::directory_entry(argv[2])) };
 
@@ -62,6 +62,10 @@ void main(size_t argc, char8_t* argv[]) {
     int64_t tickCount = 0;
     int64_t loopStartPoint = -1;
     bool looping = false;
+    std::unordered_map<std::string, int64_t> patternLengths;
+    int64_t patternCounter = 0;
+    std::string patternLabel;
+    bool readingPattAddress = false;
 
     for (const char& c : data) {
       if (c == '\n') {
@@ -77,11 +81,57 @@ void main(size_t argc, char8_t* argv[]) {
 
         // Wxx - Wait number of ticks
         } else if (line.starts_with("\t.byte\tW") || line.starts_with("\t.byte W")) {
-          tickCount += std::stoll(line.substr(_countof("\t.byte\tW") - 1).c_str());
+          int64_t value = std::stoll(line.substr(_countof("\t.byte\tW") - 1).c_str());
+          tickCount += value;
+
+          if (!patternLabel.empty()) {
+            patternCounter += value;
+          }
 
         // Loop labels are named with _B1 by convention
         } else if (line.ends_with("_B1:")) {
           loopStartPoint = tickCount;
+
+        // Ignore initial label
+        } else if (line.ends_with("_1:")) {
+
+        // PATT/PEND label (CALL/RET functionality)
+        } else if (line.ends_with(":")) {
+#if _DEBUG
+          if (!patternLabel.empty()) {
+            std::cout << "* Error: " << directoryEntry.path() << " Found a new label, when already processing \"" << patternLabel << '"' << std::endl;
+          }
+#endif
+          patternCounter = 0;
+          patternLabel.assign(line);
+
+        // PEND command -> (RET) jump back to address after PATT command
+        } else if (line.starts_with("\t.byte\tPEND") || line.starts_with("\t.byte PEND")) {
+#if _DEBUG
+          if (patternLabel.empty()) {
+            std::cout << "* Error: " << directoryEntry.path() << " PEND but no label." << std::endl;
+          }
+#endif
+          patternLengths.insert({ patternLabel, patternCounter });
+          patternLabel.clear();
+
+        // PATT command -> (CALL) jump to label, come back after PEND command
+        } else if (line.starts_with("\t.byte\tPATT") || line.starts_with("\t.byte PATT")) {
+          readingPattAddress = true;
+
+        } else if (readingPattAddress && (line.starts_with("\t .word\t") || line.starts_with("\t .word "))) {
+          readingPattAddress = false;
+          std::string label{ line.substr(_countof("\t .word\t") - 1) };
+          label.push_back(':');
+          auto it = patternLengths.find(label);
+          if (it != patternLengths.end()) {
+            tickCount += it->second;
+          }
+#if _DEBUG
+          else {
+            std::cout << "* Error: " << directoryEntry.path() << " Read in label \"" << label << "\", but it wasn't found." << std::endl;
+          }
+#endif
 
         // Reached end of track
         } else if (line.starts_with("\t.byte\tFINE") || line.starts_with("\t.byte FINE")) {
