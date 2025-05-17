@@ -19,7 +19,6 @@ void main(size_t argc, char8_t* argv[]) {
 
     std::ifstream inputFile(directoryEntry.path());
     inputFile.read(data.data(), data.size());
-    inputFile.close();
 
     return data;
   };
@@ -38,7 +37,7 @@ void main(size_t argc, char8_t* argv[]) {
     for (; c < end; ++c) {
       if (*c == ',') {
         currentLine.push_back('\0');
-        indices.insert({ currentLine.data() , std::stoll(++c) });
+        indices.insert({ currentLine.data(), std::stoll(++c) });
         currentLine.clear();
         while (c < end && *++c != '\n');
       } else {
