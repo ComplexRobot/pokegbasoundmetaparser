@@ -48,7 +48,7 @@ void main(size_t argc, char8_t* argv[]) {
   }
 
   // Output CSV file
-  std::cout << "Index,Filename,Tempo,Tick Length,Looping,Loop Start" << std::endl;
+  std::cout << "Index,Filename,Tempo,Tick Length,Looping,Loop Start,Stereo" << std::endl;
 
   for (const std::filesystem::directory_entry& directoryEntry : std::filesystem::recursive_directory_iterator(argv[1])) {
     if (directoryEntry.is_directory() || directoryEntry.path().extension() != u8".s") {
@@ -66,6 +66,7 @@ void main(size_t argc, char8_t* argv[]) {
     int64_t patternCounter = 0;
     std::string patternLabel;
     bool readingPattAddress = false;
+    bool isStereo = false;
 
     for (const char& c : data) {
       if (c == '\n') {
@@ -133,6 +134,10 @@ void main(size_t argc, char8_t* argv[]) {
           }
 #endif
 
+        // PAN command -> indicates stereo panning
+        } else if (line.find("PAN") != line.npos || line.find("PAM") != line.npos) {
+          isStereo = true;
+
         // Reached end of track
         } else if (line.starts_with("\t.byte\tFINE") || line.starts_with("\t.byte FINE")) {
           break;
@@ -163,7 +168,8 @@ void main(size_t argc, char8_t* argv[]) {
     }
 
     std::cout << index << ',' << name << ',' << tempo << ','
-      << tickCount << ',' << (looping ? "TRUE" : "FALSE") << ',' << loopStartPoint << std::endl;
+      << tickCount << ',' << (looping ? "TRUE" : "FALSE") << ',' << loopStartPoint << ','
+      << (isStereo ? "TRUE" : "FALSE") << std::endl;
 
 #if _DEBUG
     if (argc > 2 && index == -1) {
