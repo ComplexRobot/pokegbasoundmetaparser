@@ -7,7 +7,7 @@
 #include <cctype>
 
 
-void main(size_t argc, char8_t* argv[]) {
+void main(size_t argc, const char8_t* argv[]) {
   if (argc < 2) {
     std::cout << "Usage:" << std::endl;
     std::cout << std::filesystem::path(argv[0]).stem().string() << " <script_directory> [<indices_csv>]" << std::endl;
@@ -26,6 +26,15 @@ void main(size_t argc, char8_t* argv[]) {
   // Read in indices CSV file
   std::unordered_map<std::string, int64_t> indices;
   if (argc > 2) {
+    if (!std::filesystem::exists(argv[2])) {
+      std::cout << "* Fatal Error: " << std::filesystem::path(argv[2]) << " does not exist." << std::endl;
+      return;
+    }
+    if (std::filesystem::is_directory(argv[2])) {
+      std::cout << "* Fatal Error: " << std::filesystem::path(argv[2]) << " is a directory." << std::endl;
+      return;
+    }
+
     std::vector<char> data{ ReadFile(std::filesystem::directory_entry(argv[2])) };
 
     char* c = data.data();
@@ -44,6 +53,15 @@ void main(size_t argc, char8_t* argv[]) {
         currentLine.push_back(std::tolower(*c));
       }
     }
+  }
+
+  if (!std::filesystem::exists(argv[1])) {
+    std::cout << "* Fatal Error: " << std::filesystem::path(argv[1]) << " does not exist." << std::endl;
+    return;
+  }
+  if (!std::filesystem::is_directory(argv[1])) {
+    std::cout << "* Fatal Error: " << std::filesystem::path(argv[1]) << " is not a directory." << std::endl;
+    return;
   }
 
   // Output CSV file
@@ -94,12 +112,17 @@ void main(size_t argc, char8_t* argv[]) {
 
         // Ignore initial label
         } else if (line.ends_with("_1:")) {
+#if _DEBUG
+          if (tickCount != 0) {
+            std::cout << "* Error: " << directoryEntry.path().stem() << " Found start label past the beginning." << std::endl;
+          }
+#endif
 
         // PATT/PEND label (CALL/RET functionality)
         } else if (line.ends_with(":")) {
 #if _DEBUG
           if (!patternLabel.empty()) {
-            std::cout << "* Error: " << directoryEntry.path() << " Found a new label, when already processing \"" << patternLabel << '"' << std::endl;
+            std::cout << "* Error: " << directoryEntry.path().stem() << " Found a new label, when already processing \"" << patternLabel << '"' << std::endl;
           }
 #endif
           patternCounter = 0;
@@ -109,7 +132,7 @@ void main(size_t argc, char8_t* argv[]) {
         } else if (line.starts_with("\t.byte\tPEND") || line.starts_with("\t.byte PEND")) {
 #if _DEBUG
           if (patternLabel.empty()) {
-            std::cout << "* Error: " << directoryEntry.path() << " PEND but no label." << std::endl;
+            std::cout << "* Error: " << directoryEntry.path().stem() << " PEND but no label." << std::endl;
           }
 #endif
           patternLengths.insert({ patternLabel, patternCounter });
@@ -129,7 +152,7 @@ void main(size_t argc, char8_t* argv[]) {
           }
 #if _DEBUG
           else {
-            std::cout << "* Error: " << directoryEntry.path() << " Read in label \"" << label << "\", but it wasn't found." << std::endl;
+            std::cout << "* Error: " << directoryEntry.path().stem() << " Read in label \"" << label << "\", but it wasn't found." << std::endl;
           }
 #endif
 
@@ -139,10 +162,16 @@ void main(size_t argc, char8_t* argv[]) {
 
         // Reached end of track
         } else if (line.starts_with("\t.byte\tFINE") || line.starts_with("\t.byte FINE")) {
+#if _DEBUG
+          std::cout << "> Success: " << directoryEntry.path().stem() << " End (FINE) found." << std::endl;
+#endif
           break;
 
         // Check if a GOTO exists for robustness
         } else if (line.starts_with("\t.byte\tGOTO") || line.starts_with("\t.byte GOTO")) {
+#if _DEBUG
+          std::cout << "> Success: " << directoryEntry.path().stem() << " End (GOTO) found." << std::endl;
+#endif
           looping = true;
           break;
         }
@@ -186,6 +215,8 @@ void main(size_t argc, char8_t* argv[]) {
     if (looping && loopStartPoint == -1) {
       std::cout << "* Error: GOTO found, but no label." << std::endl;
     }
+
+    std::cout << std::endl;
 #endif
 
   }
