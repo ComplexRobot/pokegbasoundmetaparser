@@ -156,10 +156,6 @@ void main(size_t argc, const char8_t* argv[]) {
           }
 #endif
 
-        // PAN command -> indicates stereo panning
-        } else if (line.find("PAN") != line.npos || line.find("PAM") != line.npos) {
-          isStereo = true;
-
         // Reached end of track
         } else if (line.starts_with("\t.byte\tFINE") || line.starts_with("\t.byte FINE")) {
 #if _DEBUG
@@ -178,6 +174,25 @@ void main(size_t argc, const char8_t* argv[]) {
 
         currentLine.clear();
 
+      } else {
+        currentLine.push_back(c);
+      }
+    }
+
+    currentLine.clear();
+
+    // Check all tracks for stereo panning
+    for (const char& c : data) {
+      if (c == '\n') {
+        currentLine.push_back('\0');
+        std::string line(currentLine.data());
+
+        // PAN command -> indicates stereo panning
+        if (line.find("PAN") != line.npos || line.find("PAM") != line.npos) {
+          isStereo = true;
+        }
+
+        currentLine.clear();
       } else {
         currentLine.push_back(c);
       }

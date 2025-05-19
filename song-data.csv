@@ -14,7 +14,7 @@ Index,Filename,Tempo,Tick Length,Looping,Loop Start,Stereo
 342,mus_encounter_gym_leader,82,576,TRUE,192,TRUE
 315,mus_encounter_rival,84,1344,TRUE,192,TRUE
 283,mus_encounter_rocket,73,504,TRUE,120,TRUE
-264,mus_evolution,60,1536,TRUE,768,FALSE
+264,mus_evolution,60,1536,TRUE,768,TRUE
 263,mus_evolution_intro,60,48,FALSE,-1,TRUE
 259,mus_evolved,75,228,FALSE,-1,TRUE
 272,mus_follow_me,73,960,TRUE,576,TRUE
@@ -29,9 +29,9 @@ Index,Filename,Tempo,Tick Length,Looping,Loop Start,Stereo
 276,mus_jigglypuff,73,384,FALSE,-1,TRUE
 280,mus_lavender,64,4224,TRUE,384,TRUE
 257,mus_level_up,87,72,FALSE,-1,TRUE
-270,mus_move_deleted,75,156,FALSE,-1,FALSE
+270,mus_move_deleted,75,156,FALSE,-1,TRUE
 288,mus_mt_moon,55,3900,TRUE,0,TRUE
-329,mus_mystery_gift,62,864,TRUE,96,FALSE
+329,mus_mystery_gift,62,864,TRUE,96,TRUE
 328,mus_net_center,57,1536,TRUE,0,TRUE
 325,mus_new_game_exit,60,96,FALSE,-1,TRUE
 323,mus_new_game_instruct,60,396,TRUE,12,FALSE
@@ -72,14 +72,14 @@ Index,Filename,Tempo,Tick Length,Looping,Loop Start,Stereo
 345,mus_slow_pallet,36,1536,TRUE,0,TRUE
 304,mus_ss_anne,57,3264,TRUE,384,TRUE
 305,mus_surf,50,1296,TRUE,144,TRUE
-346,mus_teachy_tv_menu,72,216,TRUE,24,FALSE
+346,mus_teachy_tv_menu,72,216,TRUE,24,TRUE
 332,mus_teachy_tv_show,73,960,TRUE,576,TRUE
 278,mus_title,70,2520,TRUE,216,TRUE
 271,mus_too_bad,90,168,FALSE,-1,TRUE
 344,mus_trainer_tower,64,1728,TRUE,0,TRUE
 327,mus_union_room,67,2520,TRUE,24,TRUE
 313,mus_vermillion,58,1728,TRUE,0,TRUE
-312,mus_victory_gym_leader,69,2649,TRUE,345,FALSE
+312,mus_victory_gym_leader,69,2649,TRUE,345,TRUE
 295,mus_victory_road,68,1752,TRUE,216,TRUE
 310,mus_victory_trainer,68,880,TRUE,112,TRUE
 311,mus_victory_wild,70,873,TRUE,105,TRUE
@@ -223,7 +223,7 @@ Index,Filename,Tempo,Tick Length,Looping,Loop Start,Stereo
 39,se_warp_in,55,33,FALSE,-1,FALSE
 40,se_warp_out,55,36,FALSE,-1,FALSE
 245,se_bag_cursor,155,9,FALSE,-1,FALSE
-246,se_bag_pocket,211,6,FALSE,-1,FALSE
+246,se_bag_pocket,211,6,FALSE,-1,TRUE
 247,se_ball_click,155,21,FALSE,-1,FALSE
 242,se_card_flip,91,48,FALSE,-1,TRUE
 243,se_card_flipping,91,120,FALSE,-1,TRUE
