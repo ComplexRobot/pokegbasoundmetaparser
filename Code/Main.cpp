@@ -190,6 +190,7 @@ void main(size_t argc, const char8_t* argv[]) {
         // PAN command -> indicates stereo panning
         if (line.find("PAN") != line.npos || line.find("PAM") != line.npos) {
           isStereo = true;
+          break;
         }
 
         currentLine.clear();
