@@ -84,6 +84,7 @@ void main(size_t argc, const char8_t* argv[]) {
     std::string patternLabel;
     bool readingPattAddress = false;
     bool isStereo = false;
+    bool trackRepeat = false;
 
     for (const char& c : data) {
       if (c == '\n') {
@@ -181,7 +182,12 @@ void main(size_t argc, const char8_t* argv[]) {
 
     currentLine.clear();
 
-    // Check all tracks for stereo panning
+    bool currentLoopFound = false;
+    std::string initialBend{ "\t.byte\t\tBEND  , c_v+0" };
+    std::string initialVolume;
+    std::string initialPan{ "\t.byte\t\tPAN   , c_v+0" };
+    bool foundFirstWait = false;
+    // Check all tracks for stereo panning and changed loop settings
     for (const char& c : data) {
       if (c == '\n') {
         currentLine.push_back('\0');
@@ -190,13 +196,50 @@ void main(size_t argc, const char8_t* argv[]) {
         // PAN command -> indicates stereo panning
         if (line.find("PAN") != line.npos || line.find("PAM") != line.npos) {
           isStereo = true;
-          break;
+
+        }
+
+        // Reached end of track
+        if (line.starts_with("\t.byte\tFINE") || line.starts_with("\t.byte FINE")) {
+          currentLoopFound = false;
+          initialBend = "\t.byte\t\tBEND  , c_v+0";
+          initialPan = "\t.byte\t\tPAN   , c_v+0";
+          initialVolume.clear();
+          foundFirstWait = false;
+
+          // Check if a GOTO exists for robustness
+        } else if (line.starts_with("\t.byte\tGOTO") || line.starts_with("\t.byte GOTO")) {
+          currentLoopFound = true;
+
+          // If there is a command between the GOTO and FINE commands, the track is looped with different settings
+        } else if (currentLoopFound && line.starts_with("\t.byte") && line != "\t.byte\t\tMOD   , 0" && !line.starts_with("\t.byte\tW")
+          && line != initialBend && line != initialVolume && line != initialPan) {
+          trackRepeat = true;
+
+        } else if (line.starts_with("\t.byte\tW") || line.starts_with("\t.byte W")) {
+          foundFirstWait = true;
+
+        } else if (!foundFirstWait && line.starts_with("\t.byte\t\tVOL")) {
+          initialVolume = line;
+
+        } else if (!foundFirstWait && line.starts_with("\t.byte\t\tBEND ")) {
+          initialBend = line;
+
+        } else if (!foundFirstWait && line.starts_with("\t.byte\t\tPAN")) {
+          initialPan = line;
+
         }
 
         currentLine.clear();
       } else {
         currentLine.push_back(c);
       }
+    }
+
+    if (trackRepeat) {
+      int64_t loopSize = tickCount - loopStartPoint;
+      tickCount += loopSize;
+      loopStartPoint += loopSize;
     }
 
     int64_t index = -1;
