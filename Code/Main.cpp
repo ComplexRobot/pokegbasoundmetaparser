@@ -121,11 +121,6 @@ void main(size_t argc, const char8_t* argv[]) {
 
         // Ignore initial label
         } else if (line.ends_with("_1:")) {
-#if _DEBUG
-          if (tickCount != 0) {
-            std::cout << "* Error: " << directoryEntry.path().stem() << " Found start label past the beginning." << std::endl;
-          }
-#endif
 
         // PATT/PEND label (CALL/RET functionality)
         } else if (line.ends_with(":")) {
@@ -287,15 +282,11 @@ void main(size_t argc, const char8_t* argv[]) {
       std::cout << "* Error: Index not found." << std::endl;
     }
 
-    if (tickCount == 0) {
-      std::cout << "* Error: Length of 0." << std::endl;
-    }
-
     if (tempo == -1) {
       std::cout << "* Error: Tempo not found." << std::endl;
     }
 
-    if (looping && loopStartPoint == -1) {
+    if (looping && loopStartSeconds == -1) {
       std::cout << "* Error: GOTO found, but no label." << std::endl;
     }
 
