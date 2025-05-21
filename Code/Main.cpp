@@ -5,6 +5,8 @@
 #include <string>
 #include <unordered_map>
 #include <cctype>
+#include <iomanip>
+#include <limits>
 
 
 void main(size_t argc, const char8_t* argv[]) {
@@ -65,7 +67,7 @@ void main(size_t argc, const char8_t* argv[]) {
   }
 
   // Output CSV file
-  std::cout << "Index,Filename,Tempo,Tick Length,Looping,Loop Start,Stereo" << std::endl;
+  std::cout << "Index,Filename,Duration,Looping,Loop Start,Stereo" << std::endl;
 
   for (const std::filesystem::directory_entry& directoryEntry : std::filesystem::recursive_directory_iterator(argv[1])) {
     if (directoryEntry.is_directory() || directoryEntry.path().extension() != u8".s") {
@@ -76,8 +78,9 @@ void main(size_t argc, const char8_t* argv[]) {
 
     std::vector<char> currentLine;
     int64_t tempo = -1;
-    int64_t tickCount = 0;
-    int64_t loopStartPoint = -1;
+    bool loopStartFound = false;
+    std::unordered_map<int64_t, int64_t> tempoCounts;
+    std::unordered_map<int64_t, int64_t> tempoCountsStart;
     bool looping = false;
     std::unordered_map<std::string, int64_t> patternLengths;
     int64_t patternCounter = 0;
@@ -93,15 +96,20 @@ void main(size_t argc, const char8_t* argv[]) {
 
         // Read in tempo (ticks/s = TEMPO / 80 * 64)
         if (line.starts_with("\t.byte\tTEMPO , ")) {
-          tempo = std::stoll(line.substr(_countof("\t.byte\tTEMPO , ") - 1).c_str()) / 2;
+          tempo = std::stoll(line.substr(_countof("\t.byte\tTEMPO , ") - 1)) / 2;
 
         } else if (line.starts_with("\t.byte TEMPO, 0x")) {
-            tempo = std::stoll(line.substr(_countof("\t.byte TEMPO, 0x") - 1).c_str(), nullptr, 16);
+          tempo = std::stoll(line.substr(_countof("\t.byte TEMPO, 0x") - 1), nullptr, 16);
 
         // Wxx - Wait number of ticks
         } else if (line.starts_with("\t.byte\tW") || line.starts_with("\t.byte W")) {
-          int64_t value = std::stoll(line.substr(_countof("\t.byte\tW") - 1).c_str());
-          tickCount += value;
+          int64_t value = std::stoll(line.substr(_countof("\t.byte\tW") - 1));
+          if (tempo != -1) {
+            tempoCounts[tempo] += value;
+            if (!loopStartFound) {
+              tempoCountsStart[tempo] += value;
+            }
+          }
 
           if (!patternLabel.empty()) {
             patternCounter += value;
@@ -109,7 +117,7 @@ void main(size_t argc, const char8_t* argv[]) {
 
         // Loop labels are named with _B1 by convention
         } else if (line.ends_with("_B1:")) {
-          loopStartPoint = tickCount;
+          loopStartFound = true;
 
         // Ignore initial label
         } else if (line.ends_with("_1:")) {
@@ -149,7 +157,12 @@ void main(size_t argc, const char8_t* argv[]) {
           label.push_back(':');
           auto it = patternLengths.find(label);
           if (it != patternLengths.end()) {
-            tickCount += it->second;
+            if (tempo != -1) {
+              tempoCounts[tempo] += it->second;
+              if (!loopStartFound) {
+                tempoCountsStart[tempo] += it->second;
+              }
+            }
           }
 #if _DEBUG
           else {
@@ -164,7 +177,7 @@ void main(size_t argc, const char8_t* argv[]) {
 #endif
           break;
 
-        // Check if a GOTO exists for robustness
+        // GOTO - jump back to loop point
         } else if (line.starts_with("\t.byte\tGOTO") || line.starts_with("\t.byte GOTO")) {
 #if _DEBUG
           std::cout << "> Success: " << directoryEntry.path().stem() << " End (GOTO) found." << std::endl;
@@ -207,11 +220,11 @@ void main(size_t argc, const char8_t* argv[]) {
           initialVolume.clear();
           foundFirstWait = false;
 
-          // Check if a GOTO exists for robustness
+        // GOTO - loops the track indefinitely
         } else if (line.starts_with("\t.byte\tGOTO") || line.starts_with("\t.byte GOTO")) {
           currentLoopFound = true;
 
-          // If there is a command between the GOTO and FINE commands, the track is looped with different settings
+        // If there is a command between the GOTO and FINE commands, the track is looped with different settings (assumption)
         } else if (currentLoopFound && line.starts_with("\t.byte") && line != "\t.byte\t\tMOD   , 0" && !line.starts_with("\t.byte\tW")
           && line != initialBend && line != initialVolume && line != initialPan) {
           trackRepeat = true;
@@ -236,10 +249,22 @@ void main(size_t argc, const char8_t* argv[]) {
       }
     }
 
+    double duration = 0;
+    for (const std::pair<int64_t, int64_t>& tempo : tempoCounts) {
+      duration += 1.25 * tempo.second / tempo.first;
+    }
+
+    double loopStartSeconds = 0;
+    if (looping) {
+      for (const std::pair<int64_t, int64_t>& tempo : tempoCountsStart) {
+        loopStartSeconds += 1.25 * tempo.second / tempo.first;
+      }
+    }
+
     if (trackRepeat) {
-      int64_t loopSize = tickCount - loopStartPoint;
-      tickCount += loopSize;
-      loopStartPoint += loopSize;
+      double loopSeconds = duration - loopStartSeconds;
+      duration += loopSeconds;
+      loopStartSeconds += loopSeconds;
     }
 
     int64_t index = -1;
@@ -254,9 +279,8 @@ void main(size_t argc, const char8_t* argv[]) {
       index = it->second;
     }
 
-    std::cout << index << ',' << name << ',' << tempo << ','
-      << tickCount << ',' << (looping ? "TRUE" : "FALSE") << ',' << loopStartPoint << ','
-      << (isStereo ? "TRUE" : "FALSE") << std::endl;
+    std::cout << index << ',' << name << ',' << std::setprecision(std::numeric_limits<double>::max_digits10) << duration << ','
+      << (looping ? "TRUE" : "FALSE") << ',' << loopStartSeconds << ',' << (isStereo ? "TRUE" : "FALSE") << std::endl;
 
 #if _DEBUG
     if (argc > 2 && index == -1) {
