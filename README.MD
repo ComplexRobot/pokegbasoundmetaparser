@@ -1,0 +1,2 @@
+Parses sound script files (`*.s`) to get the duration, loop point and other metadata to assist ripping sounds.
+Parent project: [NanoBoyAdvance](https://github.com/ComplexRobot/NanoBoyAdvance/tree/audio-extract).

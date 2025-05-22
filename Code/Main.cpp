@@ -87,21 +87,20 @@ void main(size_t argc, const char8_t* argv[]) {
     std::string patternLabel;
     bool readingPattAddress = false;
     bool isStereo = false;
-    bool trackRepeat = false;
 
     for (const char& c : data) {
       if (c == '\n') {
         currentLine.push_back('\0');
         std::string line(currentLine.data());
 
-        // Read in tempo (ticks/s = TEMPO / 80 * 64)
+        // Read in tempo (playback rate = TEMPO / 75 * 60)
         if (line.starts_with("\t.byte\tTEMPO , ")) {
           tempo = std::stoll(line.substr(_countof("\t.byte\tTEMPO , ") - 1)) / 2;
 
         } else if (line.starts_with("\t.byte TEMPO, 0x")) {
           tempo = std::stoll(line.substr(_countof("\t.byte TEMPO, 0x") - 1), nullptr, 16);
 
-        // Wxx - Wait number of ticks
+        // Wxx - Wait amount of time
         } else if (line.starts_with("\t.byte\tW") || line.starts_with("\t.byte W")) {
           int64_t value = std::stoll(line.substr(_countof("\t.byte\tW") - 1));
           if (tempo != -1) {
@@ -190,12 +189,7 @@ void main(size_t argc, const char8_t* argv[]) {
 
     currentLine.clear();
 
-    bool currentLoopFound = false;
-    std::string initialBend{ "\t.byte\t\tBEND  , c_v+0" };
-    std::string initialVolume;
-    std::string initialPan{ "\t.byte\t\tPAN   , c_v+0" };
-    bool foundFirstWait = false;
-    // Check all tracks for stereo panning and changed loop settings
+    // Check all tracks for stereo panning
     for (const char& c : data) {
       if (c == '\n') {
         currentLine.push_back('\0');
@@ -207,42 +201,12 @@ void main(size_t argc, const char8_t* argv[]) {
 
         }
 
-        // Reached end of track
-        if (line.starts_with("\t.byte\tFINE") || line.starts_with("\t.byte FINE")) {
-          currentLoopFound = false;
-          initialBend = "\t.byte\t\tBEND  , c_v+0";
-          initialPan = "\t.byte\t\tPAN   , c_v+0";
-          initialVolume.clear();
-          foundFirstWait = false;
-
-        // GOTO - loops the track indefinitely
-        } else if (line.starts_with("\t.byte\tGOTO") || line.starts_with("\t.byte GOTO")) {
-          currentLoopFound = true;
-
-        // If there is a command between the GOTO and FINE commands, the track is looped with different settings (assumption)
-        } else if (currentLoopFound && line.starts_with("\t.byte") && line != "\t.byte\t\tMOD   , 0" && !line.starts_with("\t.byte\tW")
-          && line != initialBend && line != initialVolume && line != initialPan) {
-          trackRepeat = true;
-
-        } else if (line.starts_with("\t.byte\tW") || line.starts_with("\t.byte W")) {
-          foundFirstWait = true;
-
-        } else if (!foundFirstWait && line.starts_with("\t.byte\t\tVOL")) {
-          initialVolume = line;
-
-        } else if (!foundFirstWait && line.starts_with("\t.byte\t\tBEND ")) {
-          initialBend = line;
-
-        } else if (!foundFirstWait && line.starts_with("\t.byte\t\tPAN")) {
-          initialPan = line;
-
-        }
-
         currentLine.clear();
       } else {
         currentLine.push_back(c);
       }
     }
+
 
     double duration = 0;
     for (const std::pair<int64_t, int64_t>& tempo : tempoCounts) {
@@ -256,17 +220,20 @@ void main(size_t argc, const char8_t* argv[]) {
       }
     }
 
-    if (trackRepeat) {
-      double loopSeconds = duration - loopStartSeconds;
-      duration += loopSeconds;
-      loopStartSeconds += loopSeconds;
-    }
-
     int64_t index = -1;
 
     std::string name{ directoryEntry.path().stem().string() };
     for (char& c : name) {
       c = std::tolower(c);
+    }
+
+    // Route 1 changes after looping for an unknown reason
+    bool loopVariation = name == "mus_route1";
+
+    if (loopVariation) {
+      double loopSeconds = duration - loopStartSeconds;
+      duration += loopSeconds;
+      loopStartSeconds += loopSeconds;
     }
 
     auto it = indices.find(name);
